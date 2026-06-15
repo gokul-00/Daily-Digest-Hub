@@ -16,8 +16,6 @@ export default defineConfig({
   // Force Nitro outside Lovable sandbox; Vercel preset for deployment.
   nitro: {
     preset: "vercel",
-    // Bundle tslib into Nitro chunks — Vercel doesn't reliably install traced node_modules for _libs/*.mjs externals.
-    noExternals: ["tslib"],
   },
   plugins: [
     VitePWA({
