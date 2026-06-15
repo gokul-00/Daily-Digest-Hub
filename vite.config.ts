@@ -18,8 +18,9 @@ export default defineConfig({
     preset: "vercel",
     // Single bundle — Vercel's tracer misses split _libs/*.mjs chunks.
     inlineDynamicImports: true,
-    // Inline tslib — Vercel does not deploy traced node_modules/tslib reliably.
-    noExternals: ["tslib"],
+    // Keep tslib external (inlining breaks `import_tslib.default` on Vercel Node).
+    // With one index.mjs, trace it into the function's node_modules instead.
+    traceDeps: ["tslib"],
   },
   plugins: [
     VitePWA({

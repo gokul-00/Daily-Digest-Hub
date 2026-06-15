@@ -1,9 +1,0 @@
-{
-  "name": "traced-node-modules",
-  "version": "1.0.0",
-  "type": "module",
-  "private": true,
-  "dependencies": {
-    "re2": "1.24.1"
-  }
-}
