@@ -16,6 +16,9 @@ export default defineConfig({
   // Force Nitro outside Lovable sandbox; Vercel preset for deployment.
   nitro: {
     preset: "vercel",
+    // Vercel's file tracer misses cross-chunk _libs/*.mjs imports (e.g. @supabase/ssr+[...].mjs).
+    // Single server bundle avoids missing-module 500s in production.
+    inlineDynamicImports: true,
   },
   plugins: [
     VitePWA({
