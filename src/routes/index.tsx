@@ -1,9 +1,12 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useArtifacts } from "@/hooks/use-artifacts";
 import { useAuth } from "@/hooks/use-auth";
 import { getSession } from "@/lib/auth.functions";
+import { formatUsd } from "@/lib/ai-usage";
+import { getAiUsageSummary } from "@/lib/ai-usage.functions";
 import { generateDigest } from "@/lib/digest.functions";
 import { useDumps, activePile, type Dump, type DumpType } from "@/lib/dumps-store";
 
@@ -50,7 +53,16 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = useServerFn(generateDigest);
+  const fetchUsageSummary = useServerFn(getAiUsageSummary);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: usageSummaryData } = useQuery({
+    queryKey: ["ai-usage-summary", user?.id],
+    queryFn: () => fetchUsageSummary(),
+    enabled: !!user?.id,
+  });
+  const usageSummary = usageSummaryData?.summary;
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -71,9 +83,11 @@ function Index() {
       saveLocally({
         ...result.artifact,
         digest: result.digest,
+        usage: result.usage,
         overview: result.artifact.overview ?? result.digest.overview,
       });
       refresh();
+      void queryClient.invalidateQueries({ queryKey: ["ai-usage-summary", user?.id] });
       navigate({ to: "/digest/$id", params: { id: result.artifact.id } });
     } catch (err) {
       const message = (err as Error).message ?? "Failed to generate digest.";
@@ -256,6 +270,13 @@ function Index() {
                   Reading digest · todo list · idea seeds · notes — opens as a block page like
                   Notion or Obsidian.
                 </p>
+                {usageSummary && usageSummary.generationCount > 0 && (
+                  <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-marginalia">
+                    AI avg {usageSummary.avgTokensPerGeneration.toLocaleString()} tok / brief ·{" "}
+                    {formatUsd(usageSummary.avgCostPerGeneration)} ·{" "}
+                    {usageSummary.generationCount} total
+                  </p>
+                )}
               </div>
               <button
                 onClick={handleDigest}

@@ -4,6 +4,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 
 import { activePileFromDbRows } from "./dumps.shared";
+import { buildAiUsageMetrics, type AiUsageMetrics } from "./ai-usage";
 import {
   DigestSchema,
   type Digest,
@@ -14,7 +15,7 @@ import {
 import { extractUrls, formatExtractedForPrompt, getOrExtract } from "./extract/index";
 import { createSupabaseServerClient } from "./supabase/server";
 
-export type { Digest, DigestArtifactSummary, GenerateDigestResult };
+export type { Digest, DigestArtifactSummary, GenerateDigestResult, AiUsageMetrics };
 export type { DigestArtifact } from "./digest.shared";
 export { DigestSchema } from "./digest.shared";
 
@@ -209,13 +210,26 @@ export const generateDigest = createServerFn({ method: "POST" })
       });
     }
 
-    const { object } = await generateObject({
-      model: anthropic("claude-haiku-4-5"),
+    const prompt = `EOD pile:\n\n${lines.join("\n")}`;
+    const modelId = "claude-haiku-4-5";
+    const startedAt = Date.now();
+
+    const { object, usage } = await generateObject({
+      model: anthropic(modelId),
       schema: DigestSchema,
       maxOutputTokens: 10000,
       system:
         "You are an end-of-day personal assistant. Input is a mixed pile of READ items (links/articles to summarize), TODO items (things the user wants to do later), IDEA items (adhoc thoughts to brainstorm), and NOTE items (things to remember). For each section: READ -> abstract digest with sources; TODO -> normalize the task, infer when/priority; IDEA -> echo the seed and offer angles to explore; NOTE -> tighten the wording. Calm, editorial, no fluff. If a section has no items, return an empty array for it.",
-      prompt: `EOD pile:\n\n${lines.join("\n")}`,
+      prompt,
+    });
+
+    const aiUsage = buildAiUsageMetrics({
+      model: modelId,
+      usage,
+      dumpCount: dumps.length,
+      urlCount: urlList.length,
+      promptChars: prompt.length,
+      durationMs: Date.now() - startedAt,
     });
 
     const supabase = createSupabaseServerClient();
@@ -226,6 +240,12 @@ export const generateDigest = createServerFn({ method: "POST" })
     let artifact: DigestArtifactSummary;
     if (user) {
       artifact = await saveArtifact(user.id, object, dumps.length);
+      const { recordAiUsageEvent } = await import("./ai-usage.server");
+      await recordAiUsageEvent({
+        userId: user.id,
+        digestId: artifact.id,
+        usage: aiUsage,
+      });
     } else {
       const createdAt = new Date();
       artifact = {
@@ -237,7 +257,7 @@ export const generateDigest = createServerFn({ method: "POST" })
       };
     }
 
-    return { digest: object, artifact };
+    return { digest: object, artifact, usage: aiUsage };
   });
 
 export { getArtifact, listArtifacts } from "./digest-artifacts.functions";

@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import type { AiUsageMetrics } from "./ai-usage";
+
+export type { AiUsageMetrics } from "./ai-usage";
+
 const SourceSchema = z.object({
   url: z.string(),
   label: z.string(),
@@ -57,11 +61,13 @@ export type DigestArtifactSummary = {
 
 export type DigestArtifact = DigestArtifactSummary & {
   digest: Digest;
+  usage?: AiUsageMetrics;
 };
 
 export type GenerateDigestResult = {
   digest: Digest;
   artifact: DigestArtifactSummary;
+  usage: AiUsageMetrics;
 };
 
 export function formatArtifactTitle(date: Date): string {

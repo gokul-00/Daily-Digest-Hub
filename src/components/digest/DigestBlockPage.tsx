@@ -6,6 +6,7 @@ import { Box, Flex, Link, Text, ThemeUIProvider } from "theme-ui";
 import { DigestBlocks, DigestBlocksProvider } from "@/components/digest/DigestBlocks";
 import { digestToBlocks } from "@/lib/digest-to-blocks";
 import type { DigestArtifact } from "@/lib/digest.shared";
+import { formatAiUsageLine } from "@/lib/ai-usage";
 import { laterTheme } from "@/lib/later-theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useDigestInteractions } from "@/hooks/use-digest-interactions";
@@ -123,17 +124,33 @@ function DigestDocument({ artifact }: DigestBlockPageProps) {
               >
                 — end of edition —
               </Text>
-              <Text
-                sx={{
-                  fontFamily: "monospace",
-                  fontSize: 0,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.18em",
-                  color: "secondary",
-                }}
-              >
-                Later.
-              </Text>
+              <Flex sx={{ flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+                {artifact.usage && (
+                  <Text
+                    sx={{
+                      fontFamily: "monospace",
+                      fontSize: 0,
+                      letterSpacing: "0.06em",
+                      color: "secondary",
+                      textTransform: "none",
+                    }}
+                  >
+                    {formatAiUsageLine(artifact.usage)} · {artifact.usage.dumpCount} items ·{" "}
+                    {artifact.usage.urlCount} urls
+                  </Text>
+                )}
+                <Text
+                  sx={{
+                    fontFamily: "monospace",
+                    fontSize: 0,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.18em",
+                    color: "secondary",
+                  }}
+                >
+                  Later.
+                </Text>
+              </Flex>
             </Flex>
           </Box>
         </Box>

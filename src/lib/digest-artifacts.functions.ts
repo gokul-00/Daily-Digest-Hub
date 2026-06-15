@@ -30,11 +30,12 @@ function rowToSummary(row: DbDigestRow): DigestArtifactSummary {
   };
 }
 
-function rowToArtifact(row: DbDigestRow): DigestArtifact {
+function rowToArtifact(row: DbDigestRow, usage?: DigestArtifact["usage"]): DigestArtifact {
   const digest = DigestSchema.parse(row.payload);
   return {
     ...rowToSummary(row),
     digest,
+    usage,
   };
 }
 
@@ -93,5 +94,7 @@ export const getArtifact = createServerFn({ method: "POST" })
     }
     if (!row) return null;
 
-    return rowToArtifact(row as DbDigestRow);
+    const { fetchUsageForDigest } = await import("./ai-usage.server");
+    const usage = await fetchUsageForDigest(data.id);
+    return rowToArtifact(row as DbDigestRow, usage ?? undefined);
   });
