@@ -35,4 +35,10 @@ if (hasExternalTslibImport && !existsSync(tslibPath)) {
   process.exit(1);
 }
 
+const swPath = join(root, ".vercel/output/static/sw.js");
+if (!existsSync(swPath)) {
+  console.error("[verify-vercel-server] Missing PWA service worker:", swPath);
+  process.exit(1);
+}
+
 console.log("[verify-vercel-server] OK — single bundle, tslib", hasExternalTslibImport ? "traced" : "inlined/none");
