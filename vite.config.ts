@@ -25,8 +25,10 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["icon.svg", "favicon-32.png", "apple-touch-icon.png"],
       manifest: {
+        id: "/",
         name: "Later. — end-of-day brain dump",
         short_name: "Later.",
         description:
