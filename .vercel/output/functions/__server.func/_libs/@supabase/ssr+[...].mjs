@@ -1,8 +1,8 @@
 import { o as __toESM, t as __commonJSMin } from "../../_runtime.mjs";
+import { t as AuthClient } from "../supabase__auth-js+tslib.mjs";
 import { t as FunctionsClient } from "../supabase__functions-js.mjs";
 import { t as PostgrestClient } from "../supabase__postgrest-js.mjs";
 import { t as RealtimeClient } from "../supabase__realtime-js.mjs";
-import { t as AuthClient } from "../supabase__auth-js.mjs";
 //#region node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
