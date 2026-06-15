@@ -14,7 +14,11 @@ export default defineConfig({
     server: { entry: "server" },
   },
   // Force Nitro outside Lovable sandbox; Vercel preset for deployment.
-  nitro: { preset: "vercel" },
+  nitro: {
+    preset: "vercel",
+    // Supabase SDK chunks import tslib as external; ensure it is traced into the function bundle.
+    traceDeps: ["tslib*"],
+  },
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
