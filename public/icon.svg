@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Later.">
+  <rect width="512" height="512" rx="108" fill="#f2ebe0"/>
+  <rect x="32" y="32" width="448" height="448" rx="88" fill="none" stroke="#d9cfc0" stroke-width="4"/>
+  <text x="248" y="348" font-family="Georgia, 'Times New Roman', serif" font-size="300" font-weight="700" fill="#3a342c" text-anchor="middle">L</text>
+  <circle cx="372" cy="148" r="34" fill="#b84a3a"/>
+</svg>
