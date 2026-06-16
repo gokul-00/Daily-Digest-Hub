@@ -4,10 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useArtifacts } from "@/hooks/use-artifacts";
 import { useAuth } from "@/hooks/use-auth";
+import { pileArchivesQueryKey, usePileArchives } from "@/hooks/use-pile-archives";
 import { getSession } from "@/lib/auth.functions";
 import { formatUsd } from "@/lib/ai-usage";
 import { getAiUsageSummary } from "@/lib/ai-usage.functions";
 import { generateDigest } from "@/lib/digest.functions";
+import { archivePile } from "@/lib/pile-archive.functions";
+import { groupArchivesByDate, dumpToArchived, type ArchivedDump } from "@/lib/pile-archive.shared";
 import { useDumps, activePile, type Dump, type DumpType } from "@/lib/dumps-store";
 
 export const Route = createFileRoute("/")({
@@ -44,15 +47,20 @@ const TYPES: DumpType[] = ["read", "todo", "idea", "note"];
 
 function Index() {
   const { user, signOut } = useAuth();
-  const { dumps, add, remove, toggleDone, update, hydrated, ready, syncWarning, saveError, storage, isSaving } =
+  const { dumps, add, remove, toggleDone, update, archiveLocalPile, hydrated, ready, syncWarning, saveError, storage, isSaving } =
     useDumps();
   const { artifacts, saveLocally, refresh, isLoading: artifactsLoading } = useArtifacts();
+  const { archives, isLoading: archivesLoading, loadArchive, refresh: refreshArchives } = usePileArchives();
   const pile = useMemo(() => activePile(dumps), [dumps]);
   const [draft, setDraft] = useState("");
   const [type, setType] = useState<DumpType>("read");
   const [loading, setLoading] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedArchiveId, setExpandedArchiveId] = useState<string | null>(null);
+  const [expandedArchiveItems, setExpandedArchiveItems] = useState<ArchivedDump[] | null>(null);
   const run = useServerFn(generateDigest);
+  const runArchive = useServerFn(archivePile);
   const fetchUsageSummary = useServerFn(getAiUsageSummary);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -63,6 +71,7 @@ function Index() {
     enabled: !!user?.id,
   });
   const usageSummary = usageSummaryData?.summary;
+  const archivesByDate = useMemo(() => groupArchivesByDate(archives), [archives]);
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -78,15 +87,23 @@ function Index() {
       return;
     }
     setLoading(true);
+    const pileSnapshot = [...pile];
     try {
       const result = await run({ data: {} });
+      if (storage === "local") {
+        archiveLocalPile(pileSnapshot, result.artifact.id);
+      }
       saveLocally({
         ...result.artifact,
         digest: result.digest,
         usage: result.usage,
+        archivedPile: pileSnapshot.map(dumpToArchived),
         overview: result.artifact.overview ?? result.digest.overview,
       });
       refresh();
+      refreshArchives();
+      void queryClient.invalidateQueries({ queryKey: ["dumps", user?.id] });
+      void queryClient.invalidateQueries({ queryKey: pileArchivesQueryKey(user!.id) });
       void queryClient.invalidateQueries({ queryKey: ["ai-usage-summary", user?.id] });
       navigate({ to: "/digest/$id", params: { id: result.artifact.id } });
     } catch (err) {
@@ -95,6 +112,46 @@ function Index() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleArchive() {
+    setError(null);
+    if (pile.length === 0) {
+      setError("Nothing in the pile to archive.");
+      return;
+    }
+    setArchiving(true);
+    const pileSnapshot = [...pile];
+    try {
+      if (storage === "local") {
+        archiveLocalPile(pileSnapshot, null);
+      } else {
+        await runArchive();
+      }
+      refreshArchives();
+      void queryClient.invalidateQueries({ queryKey: ["dumps", user?.id] });
+      void queryClient.invalidateQueries({ queryKey: pileArchivesQueryKey(user!.id) });
+    } catch (err) {
+      setError((err as Error).message ?? "Could not archive the pile.");
+    } finally {
+      setArchiving(false);
+    }
+  }
+
+  async function toggleArchiveDetails(id: string) {
+    if (expandedArchiveId === id) {
+      setExpandedArchiveId(null);
+      setExpandedArchiveItems(null);
+      return;
+    }
+    const archive = await loadArchive(id);
+    setExpandedArchiveId(id);
+    setExpandedArchiveItems(
+      archive?.items.map((item) => ({
+        ...item,
+        done: item.done ?? false,
+      })) ?? null,
+    );
   }
 
   const [dateLine, setDateLine] = useState("");
@@ -218,6 +275,21 @@ function Index() {
         </section>
 
         <section className="mt-12 space-y-8 sm:mt-14 sm:space-y-10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-marginalia">
+              Today&apos;s pile
+            </p>
+            {pile.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleArchive()}
+                disabled={archiving || loading}
+                className="touch-target rounded-md border border-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft transition hover:border-ink hover:text-ink disabled:opacity-40"
+              >
+                {archiving ? "Archiving…" : "Archive pile"}
+              </button>
+            )}
+          </div>
           {!hydrated ? null : pile.length === 0 ? (
             <p className="mt-8 font-display text-lg italic text-ink-soft">
               Nothing in the pile. Throw the next thing you almost-did in the box above.
@@ -290,6 +362,72 @@ function Index() {
             {error && <p className="mt-6 font-mono text-sm text-destructive">{error}</p>}
           </div>
         </section>
+
+        {(archives.length > 0 || archivesLoading) && (
+          <section className="mt-14">
+            <div className="flex items-baseline justify-between">
+              <h3 className="font-display text-2xl tracking-tight text-ink">Pile archive</h3>
+              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-marginalia">
+                {archives.length.toString().padStart(2, "0")}
+              </span>
+            </div>
+            <div className="mt-3 h-px w-full rule-line" />
+            {archivesLoading && archives.length === 0 ? (
+              <p className="mt-4 font-mono text-xs text-ink-soft">Loading archive…</p>
+            ) : (
+              <div className="mt-4 space-y-8">
+                {archivesByDate.map((group) => (
+                  <div key={group.date}>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia">
+                      {group.heading}
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {group.archives.map((archive) => (
+                        <li key={archive.id} className="rounded-md border border-border/60 bg-background/40">
+                          <button
+                            type="button"
+                            onClick={() => void toggleArchiveDetails(archive.id)}
+                            className="flex w-full flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-left transition hover:bg-background/60"
+                          >
+                            <span className="font-display text-base text-ink">{archive.label}</span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-marginalia">
+                              {archive.itemCount} items
+                              {archive.digestId ? " · linked to edition" : ""}
+                            </span>
+                          </button>
+                          {archive.digestId && (
+                            <div className="border-t border-border/40 px-4 py-2">
+                              <Link
+                                to="/digest/$id"
+                                params={{ id: archive.digestId }}
+                                className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent hover:underline"
+                              >
+                                Open evening edition →
+                              </Link>
+                            </div>
+                          )}
+                          {expandedArchiveId === archive.id && expandedArchiveItems && (
+                            <ul className="space-y-2 border-t border-border/40 px-4 py-3">
+                              {expandedArchiveItems.map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="font-mono text-xs leading-relaxed text-ink-soft"
+                                >
+                                  <span className="mr-2 text-accent">{TYPE_META[item.type].glyph}</span>
+                                  {item.content}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {(artifacts.length > 0 || artifactsLoading) && (
           <section className="mt-14">

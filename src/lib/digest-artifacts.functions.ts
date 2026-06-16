@@ -30,12 +30,17 @@ function rowToSummary(row: DbDigestRow): DigestArtifactSummary {
   };
 }
 
-function rowToArtifact(row: DbDigestRow, usage?: DigestArtifact["usage"]): DigestArtifact {
+function rowToArtifact(
+  row: DbDigestRow,
+  usage?: DigestArtifact["usage"],
+  archivedPile?: DigestArtifact["archivedPile"],
+): DigestArtifact {
   const digest = DigestSchema.parse(row.payload);
   return {
     ...rowToSummary(row),
     digest,
     usage,
+    archivedPile,
   };
 }
 
@@ -96,5 +101,7 @@ export const getArtifact = createServerFn({ method: "POST" })
 
     const { fetchUsageForDigest } = await import("./ai-usage.server");
     const usage = await fetchUsageForDigest(data.id);
-    return rowToArtifact(row as DbDigestRow, usage ?? undefined);
+    const { getPileArchiveByDigestId } = await import("./pile-archive.server");
+    const pileArchive = await getPileArchiveByDigestId(data.id);
+    return rowToArtifact(row as DbDigestRow, usage ?? undefined, pileArchive?.items);
   });

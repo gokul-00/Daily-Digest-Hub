@@ -246,6 +246,19 @@ export const generateDigest = createServerFn({ method: "POST" })
         digestId: artifact.id,
         usage: aiUsage,
       });
+      const { archivePileItems } = await import("./pile-archive.server");
+      await archivePileItems(
+        user.id,
+        dumps.map((d) => ({
+          id: d.id,
+          type: d.type,
+          kind: d.kind,
+          content: d.content,
+          createdAt: d.createdAt,
+          done: d.done ?? false,
+        })),
+        artifact.id,
+      );
     } else {
       const createdAt = new Date();
       artifact = {

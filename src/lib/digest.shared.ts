@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 import type { AiUsageMetrics } from "./ai-usage";
+import type { ArchivedDump } from "./pile-archive.shared";
 
 export type { AiUsageMetrics } from "./ai-usage";
+export type { ArchivedDump, PileArchiveSummary } from "./pile-archive.shared";
 
 const SourceSchema = z.object({
   url: z.string(),
@@ -62,6 +64,7 @@ export type DigestArtifactSummary = {
 export type DigestArtifact = DigestArtifactSummary & {
   digest: Digest;
   usage?: AiUsageMetrics;
+  archivedPile?: ArchivedDump[];
 };
 
 export type GenerateDigestResult = {

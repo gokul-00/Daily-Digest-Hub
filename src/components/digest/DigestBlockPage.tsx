@@ -7,6 +7,7 @@ import { DigestBlocks, DigestBlocksProvider } from "@/components/digest/DigestBl
 import { digestToBlocks } from "@/lib/digest-to-blocks";
 import type { DigestArtifact } from "@/lib/digest.shared";
 import { formatAiUsageLine } from "@/lib/ai-usage";
+import type { ArchivedDump } from "@/lib/pile-archive.shared";
 import { laterTheme } from "@/lib/later-theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useDigestInteractions } from "@/hooks/use-digest-interactions";
@@ -14,6 +15,93 @@ import { useDigestInteractions } from "@/hooks/use-digest-interactions";
 type DigestBlockPageProps = {
   artifact: DigestArtifact;
 };
+
+function SourcePile({ items }: { items: ArchivedDump[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (items.length === 0) return null;
+
+  return (
+    <Box sx={{ mt: 5, pt: 4, borderTop: "1px solid", borderColor: "border" }}>
+      <Flex
+        as="button"
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        sx={{
+          width: "100%",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          bg: "transparent",
+          border: "none",
+          cursor: "pointer",
+          p: 0,
+          textAlign: "left",
+        }}
+      >
+        <Text
+          sx={{
+            fontFamily: "monospace",
+            fontSize: 0,
+            textTransform: "uppercase",
+            letterSpacing: "0.18em",
+            color: "secondary",
+          }}
+        >
+          Source pile
+        </Text>
+        <Text
+          sx={{
+            fontFamily: "monospace",
+            fontSize: 0,
+            textTransform: "uppercase",
+            letterSpacing: "0.18em",
+            color: "accent",
+          }}
+        >
+          {open ? "Hide" : "Show"} · {items.length} items
+        </Text>
+      </Flex>
+      {open && (
+        <Box as="ul" sx={{ listStyle: "none", m: 0, mt: 3, p: 0 }}>
+          {items.map((item) => (
+            <Box
+              as="li"
+              key={item.id}
+              sx={{
+                fontFamily: "monospace",
+                fontSize: 0,
+                lineHeight: 1.6,
+                color: "secondary",
+                py: 2,
+                borderBottom: "1px solid",
+                borderColor: "border",
+                "&:last-child": { borderBottom: "none" },
+              }}
+            >
+              <Text as="span" sx={{ color: "accent", mr: 2 }}>
+                {item.type === "todo"
+                  ? "☐"
+                  : item.type === "idea"
+                    ? "◆"
+                    : item.type === "note"
+                      ? "—"
+                      : "↗"}
+              </Text>
+              {item.kind === "link" ? (
+                <Link href={item.content} target="_blank" rel="noreferrer">
+                  {item.content}
+                </Link>
+              ) : (
+                item.content
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 function DigestDocument({ artifact }: DigestBlockPageProps) {
   const { user } = useAuth();
@@ -102,6 +190,9 @@ function DigestDocument({ artifact }: DigestBlockPageProps) {
             <DigestBlocksProvider interactions={interactions}>
               <DigestBlocks blocks={blocks} />
             </DigestBlocksProvider>
+            {artifact.archivedPile && artifact.archivedPile.length > 0 && (
+              <SourcePile items={artifact.archivedPile} />
+            )}
             <Flex
               sx={{
                 mt: 6,

@@ -12,6 +12,8 @@ import {
   makeDump,
   rowToDump,
 } from "./dumps.shared";
+import { createLocalPileArchive } from "./pile-archive.local";
+import { dumpToArchived } from "./pile-archive.shared";
 
 export type { Dump, DumpType } from "./dumps.shared";
 export { activePile, startOfToday } from "./dumps.shared";
@@ -381,12 +383,30 @@ export function useDumps() {
     [updateMutation, userId],
   );
 
+  const archiveLocalPile = useCallback(
+    (items: Dump[], digestId: string | null) => {
+      if (!userId || items.length === 0) return;
+      const ids = new Set(items.map((d) => d.id));
+      createLocalPileArchive(userId, items.map(dumpToArchived), digestId);
+      const snapshot = getQuerySnapshot(queryClient, userId);
+      const nextDumps = snapshot.dumps.filter((d) => !ids.has(d.id));
+      writeLocalDumps(userId, nextDumps);
+      queryClient.setQueryData<DumpsQueryData>(dumpsQueryKey(userId), {
+        ...snapshot,
+        dumps: nextDumps,
+        storage: "local",
+      });
+    },
+    [queryClient, userId],
+  );
+
   return {
     dumps,
     add,
     remove,
     toggleDone,
     update,
+    archiveLocalPile,
     storage,
     syncWarning,
     saveError,
