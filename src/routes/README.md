@@ -22,6 +22,6 @@ is `src/routes/__root.tsx`.
 
 ## Share to Later (mobile)
 
-**Android (installed PWA):** Install Later from Chrome. Share a link or text from any app — Later appears in the system share sheet.
+**Android (installed PWA):** Install Later from Chrome. Share a link or text from any app — Later appears in the system share sheet. Content is pasted into the capture box for you to review and save.
 
-**iPhone:** Web Share Target is not supported. Create a Shortcuts action: receive URLs/text from Share Sheet → Open URL `https://your-domain/share?url=…&text=…` (sign in first if prompted).
+**iPhone:** Web Share Target is not supported. Create a Shortcuts action: receive URLs/text from Share Sheet → Open URL `https://your-domain/share?url=…&text=…` (sign in first if prompted). Content lands in the capture box — pick a type and save.

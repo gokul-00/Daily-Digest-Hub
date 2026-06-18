@@ -14,6 +14,7 @@ import { getSession } from "@/lib/auth.functions";
 import { formatUsd } from "@/lib/ai-usage";
 import { getAiUsageSummary } from "@/lib/ai-usage.functions";
 import { DUMP_TYPES, TYPE_META } from "@/lib/dump-types";
+import { consumeShareDraft, markShareHandled } from "@/lib/share-payload";
 import { generateDigest } from "@/lib/digest.functions";
 import { archivePile } from "@/lib/pile-archive.functions";
 import {
@@ -90,10 +91,18 @@ function Index() {
   const editionsByDate = useMemo(() => groupItemsByDate(artifacts), [artifacts]);
 
   useEffect(() => {
-    if (search.shared === "1") {
+    if (search.shared !== "draft") return;
+    const parsed = consumeShareDraft();
+    if (parsed) {
+      setDraft(parsed.content);
+      setType(parsed.type);
       setShareBanner(true);
-      void navigate({ to: "/", search: {}, replace: true });
+      requestAnimationFrame(() => {
+        dumpRef.current?.focus();
+        dumpRef.current?.setSelectionRange(parsed.content.length, parsed.content.length);
+      });
     }
+    void navigate({ to: "/", search: {}, replace: true });
   }, [search.shared, navigate]);
 
   useEffect(() => {
@@ -129,7 +138,9 @@ function Index() {
     e.preventDefault();
     if (!draft.trim()) return;
     add(draft, type);
+    markShareHandled(draft.trim());
     setDraft("");
+    setShareBanner(false);
   }
 
   async function handleDigest() {
@@ -265,7 +276,7 @@ function Index() {
 
         {shareBanner && (
           <p className="mb-6 rounded-md border border-accent/30 bg-accent/5 px-4 py-3 font-mono text-xs text-ink">
-            Saved to your pile from share.
+            Shared content is in the box below — pick a type and save when ready.
             <button
               type="button"
               onClick={() => setShareBanner(false)}
@@ -535,7 +546,8 @@ function Index() {
             {shareHelpOpen && (
               <p className="max-w-md normal-case tracking-normal text-ink-soft">
                 <strong className="text-ink">Android:</strong> Install Later from Chrome, then share
-                links from any app — Later appears in the share sheet.
+                links from any app — Later appears in the share sheet. Content lands in the capture
+                box for you to review and save.
                 <br />
                 <strong className="mt-2 inline-block text-ink">iPhone:</strong> Create a Shortcuts
                 action: receive URLs/text from Share Sheet → Open URL{" "}

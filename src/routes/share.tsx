@@ -2,14 +2,13 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
 
-import { useDumps } from "@/lib/dumps-store";
+import { getSession } from "@/lib/auth.functions";
 import {
   isDuplicateShare,
-  markShareHandled,
   parseSharePayload,
+  stashShareDraft,
   type SharePayload,
 } from "@/lib/share-payload";
-import { getSession } from "@/lib/auth.functions";
 
 const ShareSearchSchema = z.object({
   title: z.string().optional(),
@@ -39,11 +38,10 @@ export const Route = createFileRoute("/share")({
 function SharePage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { add, ready } = useDumps();
   const handled = useRef(false);
 
   useEffect(() => {
-    if (!ready || handled.current) return;
+    if (handled.current) return;
     handled.current = true;
 
     const payload: SharePayload = {
@@ -59,18 +57,17 @@ function SharePage() {
     }
 
     if (isDuplicateShare(parsed.content)) {
-      void navigate({ to: "/", search: { shared: "1" } });
+      void navigate({ to: "/" });
       return;
     }
 
-    add(parsed.content, parsed.type);
-    markShareHandled(parsed.content);
-    void navigate({ to: "/", search: { shared: "1" } });
-  }, [add, navigate, ready, search.title, search.text, search.url]);
+    stashShareDraft(parsed);
+    void navigate({ to: "/", search: { shared: "draft" } });
+  }, [navigate, search.title, search.text, search.url]);
 
   return (
     <main className="safe-pt safe-pb safe-px flex min-h-[100dvh] items-center justify-center px-4">
-      <p className="font-mono text-sm text-ink-soft">Saving to your pile…</p>
+      <p className="font-mono text-sm text-ink-soft">Opening pile…</p>
     </main>
   );
 }

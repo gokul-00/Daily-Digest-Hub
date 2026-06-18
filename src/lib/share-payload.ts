@@ -12,6 +12,7 @@ export type ParsedShare = {
 };
 
 export const LAST_SHARE_KEY = "later.last-share";
+export const SHARE_DRAFT_KEY = "later.share-draft";
 export const SHARE_DEDUPE_MS = 60_000;
 
 function trimOptional(value?: string): string | undefined {
@@ -38,6 +39,24 @@ export function parseSharePayload(payload: SharePayload): ParsedShare | null {
     content,
     type: isUrl ? "read" : "note",
   };
+}
+
+export function stashShareDraft(parsed: ParsedShare) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SHARE_DRAFT_KEY, JSON.stringify(parsed));
+}
+
+export function consumeShareDraft(): ParsedShare | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SHARE_DRAFT_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(SHARE_DRAFT_KEY);
+    return JSON.parse(raw) as ParsedShare;
+  } catch {
+    sessionStorage.removeItem(SHARE_DRAFT_KEY);
+    return null;
+  }
 }
 
 export function isDuplicateShare(content: string): boolean {
