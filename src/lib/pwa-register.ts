@@ -1,4 +1,6 @@
 /** Client-only service worker registration for PWA install + asset caching. */
+import { notifyPwaNeedRefresh, setPwaUpdateHandler } from "./pwa-update";
+
 export function registerPwa() {
   if (typeof window === "undefined") return;
 
@@ -17,8 +19,11 @@ export function registerPwa() {
   }
 
   void import("virtual:pwa-register").then(({ registerSW }) => {
-    registerSW({
+    const updateSW = registerSW({
       immediate: true,
+      onNeedRefresh() {
+        notifyPwaNeedRefresh();
+      },
       onRegistered(registration) {
         if (registration) {
           console.info("[PWA] Service worker registered");
@@ -28,5 +33,6 @@ export function registerPwa() {
         console.warn("[PWA] Service worker registration failed", error);
       },
     });
+    setPwaUpdateHandler(updateSW);
   });
 }

@@ -24,7 +24,7 @@ export default defineConfig({
   },
   plugins: [
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: false,
       includeAssets: ["icon.svg", "favicon-32.png", "apple-touch-icon.png"],
       manifest: {
