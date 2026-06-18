@@ -1,13 +1,14 @@
 /** @jsxImportSource theme-ui */
 import { Link as RouterLink } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Box, Flex, Link, Text, ThemeUIProvider } from "theme-ui";
+import { Box, Flex, Text, ThemeUIProvider } from "theme-ui";
 
 import { DigestBlocks, DigestBlocksProvider } from "@/components/digest/DigestBlocks";
 import { digestToBlocks } from "@/lib/digest-to-blocks";
 import type { DigestArtifact } from "@/lib/digest.shared";
 import { formatAiUsageLine } from "@/lib/ai-usage";
 import type { ArchivedDump } from "@/lib/pile-archive.shared";
+import { ArchivedItemRow } from "@/components/pile/ArchivedItemRow";
 import { laterTheme } from "@/lib/later-theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useDigestInteractions } from "@/hooks/use-digest-interactions";
@@ -69,32 +70,13 @@ function SourcePile({ items }: { items: ArchivedDump[] }) {
               as="li"
               key={item.id}
               sx={{
-                fontFamily: "monospace",
-                fontSize: 0,
-                lineHeight: 1.6,
-                color: "secondary",
                 py: 2,
                 borderBottom: "1px solid",
                 borderColor: "border",
                 "&:last-child": { borderBottom: "none" },
               }}
             >
-              <Text as="span" sx={{ color: "accent", mr: 2 }}>
-                {item.type === "todo"
-                  ? "☐"
-                  : item.type === "idea"
-                    ? "◆"
-                    : item.type === "note"
-                      ? "—"
-                      : "↗"}
-              </Text>
-              {item.kind === "link" ? (
-                <Link href={item.content} target="_blank" rel="noreferrer">
-                  {item.content}
-                </Link>
-              ) : (
-                item.content
-              )}
+              <ArchivedItemRow item={item} />
             </Box>
           ))}
         </Box>

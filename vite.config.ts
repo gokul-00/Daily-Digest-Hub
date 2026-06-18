@@ -50,6 +50,24 @@ export default defineConfig({
             purpose: "maskable",
           },
         ],
+        shortcuts: [
+          {
+            name: "Add to pile",
+            short_name: "Add",
+            url: "/?focus=capture",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
+          },
+        ],
+        share_target: {
+          action: "/share",
+          method: "GET",
+          enctype: "application/x-www-form-urlencoded",
+          params: {
+            title: "title",
+            text: "text",
+            url: "url",
+          },
+        },
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,woff}"],

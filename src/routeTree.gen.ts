@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShareRouteImport } from './routes/share'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DigestIdRouteImport } from './routes/digest.$id'
 
+const ShareRoute = ShareRouteImport.update({
+  id: '/share',
+  path: '/share',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -32,35 +38,46 @@ const DigestIdRoute = DigestIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/digest/$id'
+  fullPaths: '/' | '/login' | '/share' | '/digest/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/digest/$id'
-  id: '__root__' | '/' | '/login' | '/digest/$id'
+  to: '/' | '/login' | '/share' | '/digest/$id'
+  id: '__root__' | '/' | '/login' | '/share' | '/digest/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  ShareRoute: typeof ShareRoute
   DigestIdRoute: typeof DigestIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/share': {
+      id: '/share'
+      path: '/share'
+      fullPath: '/share'
+      preLoaderRoute: typeof ShareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  ShareRoute: ShareRoute,
   DigestIdRoute: DigestIdRoute,
 }
 export const routeTree = rootRouteImport

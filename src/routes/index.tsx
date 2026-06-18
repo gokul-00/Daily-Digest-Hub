@@ -1,19 +1,36 @@
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
+import { ArchiveDateGroup } from "@/components/lists/ArchiveListItem";
+import { EditionCard } from "@/components/lists/EditionCard";
+import { SectionHeading, TruncatedGroups, TruncatedList } from "@/components/lists/SectionHeading";
+import { DumpRow } from "@/components/pile/DumpRow";
 import { useArtifacts } from "@/hooks/use-artifacts";
 import { useAuth } from "@/hooks/use-auth";
 import { pileArchivesQueryKey, usePileArchives } from "@/hooks/use-pile-archives";
 import { getSession } from "@/lib/auth.functions";
 import { formatUsd } from "@/lib/ai-usage";
 import { getAiUsageSummary } from "@/lib/ai-usage.functions";
+import { DUMP_TYPES, TYPE_META } from "@/lib/dump-types";
 import { generateDigest } from "@/lib/digest.functions";
 import { archivePile } from "@/lib/pile-archive.functions";
-import { groupArchivesByDate, dumpToArchived, type ArchivedDump } from "@/lib/pile-archive.shared";
+import {
+  groupArchivesByDate,
+  groupItemsByDate,
+  dumpToArchived,
+  type ArchivedDump,
+} from "@/lib/pile-archive.shared";
 import { useDumps, activePile, type Dump, type DumpType } from "@/lib/dumps-store";
 
+const IndexSearchSchema = z.object({
+  shared: z.string().optional(),
+  focus: z.string().optional(),
+});
+
 export const Route = createFileRoute("/")({
+  validateSearch: (search) => IndexSearchSchema.parse(search),
   beforeLoad: async () => {
     const { user } = await getSession();
     if (!user) throw redirect({ to: "/login" });
@@ -36,16 +53,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const TYPE_META: Record<DumpType, { label: string; glyph: string; hint: string; verb: string }> = {
-  read: { label: "Read", glyph: "¶", hint: "link or article to read later", verb: "Save to read" },
-  todo: { label: "Todo", glyph: "✓", hint: "something to do later", verb: "Add todo" },
-  idea: { label: "Idea", glyph: "✺", hint: "adhoc thought to brainstorm", verb: "Capture idea" },
-  note: { label: "Note", glyph: "•", hint: "something to remember", verb: "Jot note" },
-};
-
-const TYPES: DumpType[] = ["read", "todo", "idea", "note"];
-
 function Index() {
+  const search = Route.useSearch();
   const { user, signOut } = useAuth();
   const { dumps, add, remove, toggleDone, update, archiveLocalPile, hydrated, ready, syncWarning, saveError, storage, isSaving } =
     useDumps();
@@ -59,6 +68,12 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const [expandedArchiveId, setExpandedArchiveId] = useState<string | null>(null);
   const [expandedArchiveItems, setExpandedArchiveItems] = useState<ArchivedDump[] | null>(null);
+  const [archivePreviews, setArchivePreviews] = useState<Record<string, ArchivedDump[]>>({});
+  const [showAllEditions, setShowAllEditions] = useState(false);
+  const [shareBanner, setShareBanner] = useState(false);
+  const [shareHelpOpen, setShareHelpOpen] = useState(false);
+  const dumpRef = useRef<HTMLTextAreaElement>(null);
+  const loadedPreviewIds = useRef(new Set<string>());
   const run = useServerFn(generateDigest);
   const runArchive = useServerFn(archivePile);
   const fetchUsageSummary = useServerFn(getAiUsageSummary);
@@ -72,6 +87,43 @@ function Index() {
   });
   const usageSummary = usageSummaryData?.summary;
   const archivesByDate = useMemo(() => groupArchivesByDate(archives), [archives]);
+  const editionsByDate = useMemo(() => groupItemsByDate(artifacts), [artifacts]);
+
+  useEffect(() => {
+    if (search.shared === "1") {
+      setShareBanner(true);
+      void navigate({ to: "/", search: {}, replace: true });
+    }
+  }, [search.shared, navigate]);
+
+  useEffect(() => {
+    if (search.focus === "capture") {
+      dumpRef.current?.focus();
+      void navigate({ to: "/", search: {}, replace: true });
+    }
+  }, [search.focus, navigate]);
+
+  useEffect(() => {
+    const pending = archives
+      .slice(0, 12)
+      .filter((a) => !loadedPreviewIds.current.has(a.id));
+    if (pending.length === 0) return;
+    for (const archive of pending) loadedPreviewIds.current.add(archive.id);
+    void Promise.all(
+      pending.map(async (archive) => {
+        const full = await loadArchive(archive.id);
+        return full ? { id: archive.id, items: full.items.slice(0, 2) } : null;
+      }),
+    ).then((results) => {
+      const next: Record<string, ArchivedDump[]> = {};
+      for (const result of results) {
+        if (result) next[result.id] = result.items;
+      }
+      if (Object.keys(next).length > 0) {
+        setArchivePreviews((prev) => ({ ...prev, ...next }));
+      }
+    });
+  }, [archives, loadArchive]);
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -152,6 +204,12 @@ function Index() {
         done: item.done ?? false,
       })) ?? null,
     );
+    if (archive) {
+      setArchivePreviews((prev) => ({
+        ...prev,
+        [id]: archive.items.slice(0, 2),
+      }));
+    }
   }
 
   const [dateLine, setDateLine] = useState("");
@@ -205,6 +263,19 @@ function Index() {
           </p>
         </header>
 
+        {shareBanner && (
+          <p className="mb-6 rounded-md border border-accent/30 bg-accent/5 px-4 py-3 font-mono text-xs text-ink">
+            Saved to your pile from share.
+            <button
+              type="button"
+              onClick={() => setShareBanner(false)}
+              className="ml-3 uppercase tracking-[0.14em] text-accent hover:underline"
+            >
+              Dismiss
+            </button>
+          </p>
+        )}
+
         {syncWarning && (
           <p className="mb-6 rounded-md border border-accent/30 bg-accent/5 px-4 py-3 font-mono text-xs leading-relaxed text-ink-soft">
             {syncWarning}
@@ -214,7 +285,7 @@ function Index() {
         <section className="paper-card rounded-lg p-4 sm:p-7">
           <form onSubmit={handleAdd} className="space-y-3">
             <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
-              {TYPES.map((t) => {
+              {DUMP_TYPES.map((t) => {
                 const active = type === t;
                 return (
                   <button
@@ -242,6 +313,7 @@ function Index() {
             </label>
             <textarea
               id="dump"
+              ref={dumpRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={
@@ -295,7 +367,7 @@ function Index() {
               Nothing in the pile. Throw the next thing you almost-did in the box above.
             </p>
           ) : (
-            TYPES.map((t) => {
+            DUMP_TYPES.map((t) => {
               const items = grouped[t];
               if (items.length === 0) return null;
               return (
@@ -310,18 +382,25 @@ function Index() {
                     </span>
                   </div>
                   <div className="mt-3 h-px w-full rule-line" />
-                  <ul className="mt-4 space-y-3">
-                    {items.map((d, i) => (
-                      <DumpRow
-                        key={d.id}
-                        dump={d}
-                        index={items.length - i}
-                        onRemove={() => remove(d.id)}
-                        onToggle={() => toggleDone(d.id)}
-                        onSave={(content) => update(d.id, content)}
-                      />
-                    ))}
-                  </ul>
+                  <div className="mt-4">
+                    <TruncatedList
+                      items={items}
+                      previewCount={5}
+                      listClassName="space-y-3"
+                      expandLabel={(total) => `View all ${total} ${TYPE_META[t].label.toLowerCase()}`}
+                      getKey={(d) => d.id}
+                      renderItem={(d, i, expanded) => (
+                        <DumpRow
+                          dump={d}
+                          index={items.length - i}
+                          preview={!expanded && items.length > 5}
+                          onRemove={() => remove(d.id)}
+                          onToggle={() => toggleDone(d.id)}
+                          onSave={(content) => update(d.id, content)}
+                        />
+                      )}
+                    />
+                  </div>
                 </div>
               );
             })
@@ -365,65 +444,27 @@ function Index() {
 
         {(archives.length > 0 || archivesLoading) && (
           <section className="mt-14">
-            <div className="flex items-baseline justify-between">
-              <h3 className="font-display text-2xl tracking-tight text-ink">Pile archive</h3>
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-marginalia">
-                {archives.length.toString().padStart(2, "0")}
-              </span>
-            </div>
-            <div className="mt-3 h-px w-full rule-line" />
+            <SectionHeading title="Pile archive" count={archives.length} />
             {archivesLoading && archives.length === 0 ? (
               <p className="mt-4 font-mono text-xs text-ink-soft">Loading archive…</p>
             ) : (
-              <div className="mt-4 space-y-8">
-                {archivesByDate.map((group) => (
-                  <div key={group.date}>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia">
-                      {group.heading}
-                    </p>
-                    <ul className="mt-3 space-y-2">
-                      {group.archives.map((archive) => (
-                        <li key={archive.id} className="rounded-md border border-border/60 bg-background/40">
-                          <button
-                            type="button"
-                            onClick={() => void toggleArchiveDetails(archive.id)}
-                            className="flex w-full flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-left transition hover:bg-background/60"
-                          >
-                            <span className="font-display text-base text-ink">{archive.label}</span>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-marginalia">
-                              {archive.itemCount} items
-                              {archive.digestId ? " · linked to edition" : ""}
-                            </span>
-                          </button>
-                          {archive.digestId && (
-                            <div className="border-t border-border/40 px-4 py-2">
-                              <Link
-                                to="/digest/$id"
-                                params={{ id: archive.digestId }}
-                                className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent hover:underline"
-                              >
-                                Open evening edition →
-                              </Link>
-                            </div>
-                          )}
-                          {expandedArchiveId === archive.id && expandedArchiveItems && (
-                            <ul className="space-y-2 border-t border-border/40 px-4 py-3">
-                              {expandedArchiveItems.map((item) => (
-                                <li
-                                  key={item.id}
-                                  className="font-mono text-xs leading-relaxed text-ink-soft"
-                                >
-                                  <span className="mr-2 text-accent">{TYPE_META[item.type].glyph}</span>
-                                  {item.content}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+              <div className="mt-4">
+                <TruncatedGroups
+                  groups={archivesByDate}
+                  previewCount={3}
+                  getKey={(g) => g.date}
+                  expandLabel={(total) => `View all ${total} dates`}
+                  renderGroup={(group) => (
+                    <ArchiveDateGroup
+                      heading={group.heading}
+                      archives={group.archives}
+                      expandedArchiveId={expandedArchiveId}
+                      expandedArchiveItems={expandedArchiveItems}
+                      archivePreviews={archivePreviews}
+                      onToggleArchive={(id) => void toggleArchiveDetails(id)}
+                    />
+                  )}
+                />
               </div>
             )}
           </section>
@@ -431,172 +472,82 @@ function Index() {
 
         {(artifacts.length > 0 || artifactsLoading) && (
           <section className="mt-14">
-            <div className="flex items-baseline justify-between">
-              <h3 className="font-display text-2xl tracking-tight text-ink">Past editions</h3>
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-marginalia">
-                {artifacts.length.toString().padStart(2, "0")}
-              </span>
-            </div>
-            <div className="mt-3 h-px w-full rule-line" />
+            <SectionHeading title="Past editions" count={artifacts.length} />
             {artifactsLoading && artifacts.length === 0 ? (
-              <p className="mt-4 font-mono text-xs text-ink-soft">Loading archive…</p>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {artifacts.map((a) => (
-                  <li key={a.id}>
-                    <Link
-                      to="/digest/$id"
-                      params={{ id: a.id }}
-                      className="block w-full rounded-md border border-border/60 bg-background/40 px-4 py-3 text-left transition hover:border-border hover:bg-background/60"
-                    >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="font-display text-base text-ink">{a.title}</span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-marginalia">
-                          {a.dumpCount} items · open
-                        </span>
-                      </div>
-                      {a.overview && (
-                        <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{a.overview}</p>
-                      )}
-                    </Link>
-                  </li>
+              <p className="mt-4 font-mono text-xs text-ink-soft">Loading editions…</p>
+            ) : showAllEditions ? (
+              <div className="mt-4 space-y-8">
+                {editionsByDate.map((group) => (
+                  <div key={group.date}>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia">
+                      {group.heading}
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {group.items.map((a) => (
+                        <li key={a.id}>
+                          <EditionCard artifact={a} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+                <button
+                  type="button"
+                  onClick={() => setShowAllEditions(false)}
+                  className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent hover:underline"
+                >
+                  Show fewer editions
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <ul className="space-y-2">
+                  {artifacts.slice(0, 5).map((a) => (
+                    <li key={a.id}>
+                      <EditionCard artifact={a} />
+                    </li>
+                  ))}
+                </ul>
+                {artifacts.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllEditions(true)}
+                    className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-accent hover:underline"
+                  >
+                    View all {artifacts.length} editions
+                  </button>
+                )}
+              </div>
             )}
           </section>
         )}
 
         <footer className="mt-16 flex flex-col gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia sm:mt-20 sm:flex-row sm:items-center sm:justify-between sm:text-[11px] sm:tracking-[0.2em]">
           <span>— end of issue —</span>
-          <span>{storage === "cloud" ? "synced to your account" : "stored on this device"}</span>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <button
+              type="button"
+              onClick={() => setShareHelpOpen((v) => !v)}
+              className="touch-target text-left uppercase tracking-[0.18em] hover:text-accent"
+            >
+              Share to Later
+            </button>
+            {shareHelpOpen && (
+              <p className="max-w-md normal-case tracking-normal text-ink-soft">
+                <strong className="text-ink">Android:</strong> Install Later from Chrome, then share
+                links from any app — Later appears in the share sheet.
+                <br />
+                <strong className="mt-2 inline-block text-ink">iPhone:</strong> Create a Shortcuts
+                action: receive URLs/text from Share Sheet → Open URL{" "}
+                <span className="break-all text-accent">
+                  {typeof window !== "undefined" ? window.location.origin : ""}/share?url=…&amp;text=…
+                </span>
+              </p>
+            )}
+            <span>{storage === "cloud" ? "synced to your account" : "stored on this device"}</span>
+          </div>
         </footer>
       </div>
     </main>
-  );
-}
-
-function DumpRow({
-  dump,
-  index,
-  onRemove,
-  onToggle,
-  onSave,
-}: {
-  dump: Dump;
-  index: number;
-  onRemove: () => void;
-  onToggle: () => void;
-  onSave: (content: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(dump.content);
-  const time = new Date(dump.createdAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const isLink = dump.kind === "link";
-  const display =
-    isLink && dump.content.length > 80 ? dump.content.slice(0, 77) + "…" : dump.content;
-
-  function commit() {
-    const v = draft.trim();
-    if (!v) return;
-    if (v !== dump.content) onSave(v);
-    setEditing(false);
-  }
-  function cancel() {
-    setDraft(dump.content);
-    setEditing(false);
-  }
-
-  return (
-    <li className="group grid grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-2 border-b border-border/60 pb-3 sm:grid-cols-[1.75rem_1fr_auto] sm:gap-3">
-      <button
-        onClick={onToggle}
-        aria-label={dump.done ? "Mark open" : "Mark done"}
-        className={
-          "mt-1 grid h-5 w-5 place-items-center rounded-sm border font-mono text-[10px] transition " +
-          (dump.done
-            ? "border-accent bg-accent text-accent-foreground"
-            : "border-border bg-background/40 text-transparent hover:text-marginalia")
-        }
-      >
-        ✓
-      </button>
-      <div className="min-w-0">
-        <div className="mb-1 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-marginalia">
-          <span>{index.toString().padStart(2, "0")}</span>
-          <span>·</span>
-          <span>{time}</span>
-        </div>
-        {editing ? (
-          <div className="space-y-2">
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              rows={3}
-              autoFocus
-              className="w-full resize-none rounded-md border border-border bg-background/60 px-3 py-2 font-sans text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ring/60"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={commit}
-                className="rounded-md bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-primary-foreground hover:bg-accent"
-              >
-                Save
-              </button>
-              <button
-                onClick={cancel}
-                className="rounded-md border border-border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-soft hover:text-ink"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : isLink ? (
-          <a
-            href={dump.content}
-            target="_blank"
-            rel="noreferrer"
-            className={
-              "break-all font-mono text-sm hover:text-accent " +
-              (dump.done ? "text-ink-soft line-through" : "text-ink")
-            }
-          >
-            {display}
-          </a>
-        ) : (
-          <p
-            className={
-              "whitespace-pre-wrap font-display text-base leading-snug " +
-              (dump.done ? "text-ink-soft line-through" : "text-ink")
-            }
-          >
-            {display}
-          </p>
-        )}
-      </div>
-      {!editing && (
-        <div className="col-span-2 flex items-center justify-end gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft sm:col-span-1 sm:flex-col sm:items-end sm:gap-1 sm:opacity-60 sm:transition sm:group-hover:opacity-100">
-          <button
-            onClick={() => {
-              setDraft(dump.content);
-              setEditing(true);
-            }}
-            aria-label="Edit"
-            className="touch-target inline-flex items-center hover:text-accent"
-          >
-            Edit
-          </button>
-          <button
-            onClick={onRemove}
-            aria-label="Remove"
-            className="touch-target inline-flex items-center hover:text-destructive"
-          >
-            Discard
-          </button>
-        </div>
-      )}
-    </li>
   );
 }

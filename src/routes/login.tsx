@@ -1,10 +1,32 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 
 import { getSession } from "@/lib/auth.functions";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
+const LoginSearchSchema = z.object({
+  next: z.string().optional(),
+  title: z.string().optional(),
+  text: z.string().optional(),
+  url: z.string().optional(),
+});
+
+function buildPostLoginUrl(search: z.infer<typeof LoginSearchSchema>): string {
+  if (search.next === "/share") {
+    const params = new URLSearchParams();
+    if (search.title) params.set("title", search.title);
+    if (search.text) params.set("text", search.text);
+    if (search.url) params.set("url", search.url);
+    const qs = params.toString();
+    return qs ? `/share?${qs}` : "/share";
+  }
+  if (search.next?.startsWith("/")) return search.next;
+  return "/";
+}
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (search) => LoginSearchSchema.parse(search),
   head: () => ({
     meta: [
       { title: "Sign in — Later." },
@@ -19,6 +41,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const search = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"magic" | "password">("magic");
@@ -32,10 +55,11 @@ function LoginPage() {
     setLoading(true);
     try {
       const supabase = getSupabaseBrowserClient();
+      const redirectTo = `${window.location.origin}${buildPostLoginUrl(search)}`;
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: redirectTo,
         },
       });
       if (authError) throw authError;
@@ -58,7 +82,7 @@ function LoginPage() {
         password,
       });
       if (authError) throw authError;
-      window.location.href = "/";
+      window.location.href = buildPostLoginUrl(search);
     } catch (err) {
       setError((err as Error).message ?? "Could not sign in.");
     } finally {

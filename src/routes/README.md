@@ -19,3 +19,9 @@ is `src/routes/__root.tsx`.
 | `__root.tsx` | app shell — wraps every page; preserve `<Outlet />` |
 
 `routeTree.gen.ts` is auto-generated. Don't edit it by hand.
+
+## Share to Later (mobile)
+
+**Android (installed PWA):** Install Later from Chrome. Share a link or text from any app — Later appears in the system share sheet.
+
+**iPhone:** Web Share Target is not supported. Create a Shortcuts action: receive URLs/text from Share Sheet → Open URL `https://your-domain/share?url=…&text=…` (sign in first if prompted).

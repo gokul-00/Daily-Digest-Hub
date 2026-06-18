@@ -82,3 +82,24 @@ export function groupArchivesByDate<T extends { archivedAt: string }>(
       ),
     }));
 }
+
+export function groupItemsByDate<T extends { createdAt: string }>(
+  items: T[],
+): { date: string; heading: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const key = archiveDateKey(item.createdAt);
+    const list = map.get(key) ?? [];
+    list.push(item);
+    map.set(key, list);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([date, groupItems]) => ({
+      date,
+      heading: formatArchiveDateHeading(groupItems[0]!.createdAt),
+      items: groupItems.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    }));
+}
