@@ -20,9 +20,9 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import {
   EXAMS,
-  saveQuizResult,
   todayKey,
   useExamProfile,
+  useQuizResults,
   useSaved,
   type BriefItem,
   type DailyBrief,
@@ -156,10 +156,15 @@ function ExamPage() {
           </>
         )}
 
-        <footer className="mt-16 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-marginalia">
+        <footer className="mt-16 flex flex-col gap-1 font-mono text-[10px] uppercase tracking-[0.2em] text-marginalia sm:flex-row sm:items-center sm:justify-between">
           <span>— shared daily edition —</span>
-          <span>saved on this device</span>
+          <span>quiz + saved sync to your account</span>
         </footer>
+        {savedApi.writeError && (
+          <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 font-mono text-xs text-ink" role="alert">
+            {savedApi.writeError}
+          </p>
+        )}
       </div>
       <ProductTabBar />
     </main>
@@ -174,7 +179,8 @@ function Onboarding({ onSave }: { onSave: (exam: Exam) => void }) {
         Which exam are you preparing for?
       </h2>
       <p className="mt-2 text-sm text-ink-soft">
-        Your daily brief will be ranked for this exam. You can switch anytime.
+        Your daily brief will be ranked for this exam. Preference is saved on this device for your
+        account — you can switch anytime.
       </p>
       <ul className="mt-6 grid gap-2 sm:grid-cols-2">
         {EXAMS.map((e) => {
@@ -427,11 +433,22 @@ function TodayView({ exam, savedApi }: { exam: Exam; savedApi: SavedApi }) {
 
 function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
   const date = todayKey();
+  const { user } = useAuth();
+  const { results, saveResult, writeError } = useQuizResults();
   const get = useServerFn(getDailyBrief);
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+
+  const priorForExam = useMemo(
+    () => results.filter((r) => r.exam === exam).slice(0, 5),
+    [results, exam],
+  );
+  const todaysResult = useMemo(
+    () => results.find((r) => r.exam === exam && r.date === date) ?? null,
+    [results, exam, date],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -447,6 +464,10 @@ function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
       cancelled = true;
     };
   }, [exam, date, get]);
+
+  useEffect(() => {
+    if (todaysResult) setSubmitted(true);
+  }, [todaysResult]);
 
   const questions = useMemo(() => {
     if (!brief) return [];
@@ -469,7 +490,7 @@ function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
     return (
       <section className="paper-card rounded-lg p-6">
         <p className="text-sm text-ink-soft">
-          Generate today's brief first — the quiz pulls from those items.
+          Generate today&apos;s brief first — the quiz pulls from those items.
         </p>
         <button
           type="button"
@@ -486,10 +507,18 @@ function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
     (n, q, i) => (answers[i] === q.mcq.answerIndex ? n + 1 : n),
     0,
   );
+  const displayScore = submitted && todaysResult && Object.keys(answers).length === 0
+    ? todaysResult.score
+    : score;
+  const displayTotal =
+    submitted && todaysResult && Object.keys(answers).length === 0
+      ? todaysResult.total
+      : questions.length;
 
   function submit() {
+    if (!user?.id) return;
     setSubmitted(true);
-    saveQuizResult({
+    void saveResult({
       date,
       exam,
       score,
@@ -502,12 +531,37 @@ function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
     <section className="space-y-4">
       <div>
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-marginalia">
-          Revision quiz
+          Revision quiz · your account
         </p>
         <h3 className="mt-1 font-display text-2xl tracking-tight text-ink">
           5 questions from today
         </h3>
       </div>
+      {writeError && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 font-mono text-xs text-ink" role="alert">
+          {writeError}
+        </p>
+      )}
+      {priorForExam.length > 0 && (
+        <div className="rounded-md border border-border/60 bg-background/40 px-4 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-marginalia">
+            Recent scores
+          </p>
+          <ul className="mt-2 space-y-1">
+            {priorForExam.map((r) => (
+              <li
+                key={`${r.date}-${r.exam}`}
+                className="flex items-baseline justify-between gap-3 font-mono text-[11px] text-ink-soft"
+              >
+                <span>{r.date}</span>
+                <span className="text-ink">
+                  {r.score}/{r.total}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ol className="space-y-4">
         {questions.map((q, i) => (
           <li key={q.id} className="paper-card rounded-lg p-5">
@@ -545,7 +599,7 @@ function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
                 );
               })}
             </ul>
-            {submitted && (
+            {submitted && Object.keys(answers).length > 0 && (
               <p className="mt-2 font-mono text-[11px] text-ink-soft">→ {q.mcq.explanation}</p>
             )}
           </li>
@@ -564,8 +618,13 @@ function QuizView({ exam, onGoToday }: { exam: Exam; onGoToday: () => void }) {
         <div className="paper-card rounded-lg p-5">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-marginalia">Score</p>
           <p className="mt-1 font-display text-3xl text-ink">
-            {score} <span className="text-ink-soft">/ {questions.length}</span>
+            {displayScore} <span className="text-ink-soft">/ {displayTotal}</span>
           </p>
+          {todaysResult && Object.keys(answers).length === 0 && (
+            <p className="mt-2 text-sm text-ink-soft">
+              Already submitted today for this exam. Score is saved to your account.
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -579,7 +638,10 @@ function SavedView({ savedApi, onGoToday }: { savedApi: SavedApi; onGoToday: () 
     return (
       <section className="paper-card rounded-lg p-6">
         <p className="text-sm text-ink-soft">
-          Nothing saved yet. Hit ★ on any item in Today's brief to revise later.
+          Nothing saved yet. Hit ★ on any item in Today&apos;s brief to revise later.
+        </p>
+        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-marginalia">
+          Saved to your account · syncs across devices
         </p>
         <button
           type="button"
@@ -593,9 +655,14 @@ function SavedView({ savedApi, onGoToday }: { savedApi: SavedApi; onGoToday: () 
   }
   return (
     <section className="space-y-4">
-      <h3 className="font-display text-2xl tracking-tight text-ink">
-        Saved <span className="text-ink-soft">· {saved.length}</span>
-      </h3>
+      <div>
+        <h3 className="font-display text-2xl tracking-tight text-ink">
+          Saved <span className="text-ink-soft">· {saved.length}</span>
+        </h3>
+        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-marginalia">
+          Your account · synced
+        </p>
+      </div>
       <ol className="space-y-3">
         {saved.map((item) => (
           <li key={item.id} className="paper-card rounded-lg p-5">
