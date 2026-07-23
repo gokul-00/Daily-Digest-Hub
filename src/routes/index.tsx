@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,6 +7,8 @@ import { ArchiveDateGroup } from "@/components/lists/ArchiveListItem";
 import { EditionCard } from "@/components/lists/EditionCard";
 import { SectionHeading, TruncatedGroups, TruncatedList } from "@/components/lists/SectionHeading";
 import { DumpRow } from "@/components/pile/DumpRow";
+import { ProductTabBar } from "@/components/ProductTabBar";
+import { ProductSwitch } from "@/components/ProductSwitch";
 import { useArtifacts } from "@/hooks/use-artifacts";
 import { useAuth } from "@/hooks/use-auth";
 import { pileArchivesQueryKey, usePileArchives } from "@/hooks/use-pile-archives";
@@ -241,43 +243,39 @@ function Index() {
   }, [pile]);
 
   return (
-    <main className="safe-pt safe-pb safe-px min-h-[100dvh] pb-28 pt-6 sm:px-6 sm:pt-10 md:px-10 md:pt-16">
+    <main className="safe-pt safe-pb safe-px min-h-[100dvh] pb-28 pt-6 sm:px-6 sm:pt-10 md:px-10 md:pb-10 md:pt-16">
       <div className="mx-auto w-full max-w-3xl">
-        <header className="mb-8 sm:mb-12">
-          <div className="flex flex-col gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia sm:flex-row sm:items-baseline sm:justify-between sm:text-xs sm:tracking-[0.22em]">
-            <span>vol. 01</span>
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-4">
-              <Link
-                to="/exam"
-                className="touch-target inline-flex items-center uppercase tracking-[0.18em] hover:text-accent sm:tracking-[0.22em]"
-              >
-                exampulse →
-              </Link>
-              {user?.email && (
-                <span className="max-w-[14rem] truncate normal-case tracking-normal text-ink-soft sm:max-w-xs">
-                  {user.email}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => void signOut().then(() => (window.location.href = "/login"))}
-                className="touch-target inline-flex items-center uppercase tracking-[0.18em] hover:text-accent sm:tracking-[0.22em]"
-              >
-                Sign out
-              </button>
-              <span className="whitespace-nowrap" suppressHydrationWarning>
-                {dateLine}
+        <header className="mb-6 sm:mb-8 md:mb-12">
+          <div className="flex items-baseline justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia sm:text-xs sm:tracking-[0.22em]">
+            <span className="min-w-0 truncate">
+              vol. 01
+              <span className="mx-2 text-border" aria-hidden>
+                ·
               </span>
-            </div>
+              <span suppressHydrationWarning>{dateLine}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => void signOut().then(() => (window.location.href = "/login"))}
+              className="touch-target shrink-0 inline-flex items-center hover:text-accent"
+              title={user?.email ?? "Sign out"}
+            >
+              Sign out
+            </button>
           </div>
           <div className="mt-3 h-px w-full rule-line" />
-          <h1 className="text-display-xl mt-6 font-display tracking-tight text-ink sm:mt-8">
-            Later<span className="text-accent">.</span>
-          </h1>
-          <p className="text-display-lead mt-3 max-w-xl font-display italic text-ink-soft sm:mt-4">
-            A quiet inbox for the things you meant to read, do, or think about. Dump now — read the
-            brief tonight.
-          </p>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 sm:mt-8">
+            <div className="min-w-0">
+              <h1 className="text-display-xl font-display tracking-tight text-ink">
+                Later<span className="text-accent">.</span>
+              </h1>
+              <p className="text-display-lead mt-3 max-w-xl font-display italic text-ink-soft sm:mt-4">
+                A quiet inbox for the things you meant to read, do, or think about. Dump now — read
+                the brief tonight.
+              </p>
+            </div>
+            <ProductSwitch current="later" className="mb-1 shrink-0" />
+          </div>
         </header>
 
         {shareBanner && (
@@ -566,6 +564,7 @@ function Index() {
           </div>
         </footer>
       </div>
+      <ProductTabBar />
     </main>
   );
 }

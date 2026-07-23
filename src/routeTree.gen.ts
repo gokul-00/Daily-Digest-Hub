@@ -13,7 +13,11 @@ import { Route as ShareRouteImport } from './routes/share'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ExamRouteImport } from './routes/exam'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExamIndexRouteImport } from './routes/exam.index'
+import { Route as ExamArchiveRouteImport } from './routes/exam.archive'
 import { Route as DigestIdRouteImport } from './routes/digest.$id'
+import { Route as ExamArchiveIndexRouteImport } from './routes/exam.archive.index'
+import { Route as ExamArchiveDateRouteImport } from './routes/exam.archive.$date'
 import { Route as ApiCronExamBriefsRouteImport } from './routes/api/cron/exam-briefs'
 
 const ShareRoute = ShareRouteImport.update({
@@ -36,10 +40,30 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExamIndexRoute = ExamIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExamRoute,
+} as any)
+const ExamArchiveRoute = ExamArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => ExamRoute,
+} as any)
 const DigestIdRoute = DigestIdRouteImport.update({
   id: '/digest/$id',
   path: '/digest/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ExamArchiveIndexRoute = ExamArchiveIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExamArchiveRoute,
+} as any)
+const ExamArchiveDateRoute = ExamArchiveDateRouteImport.update({
+  id: '/$date',
+  path: '/$date',
+  getParentRoute: () => ExamArchiveRoute,
 } as any)
 const ApiCronExamBriefsRoute = ApiCronExamBriefsRouteImport.update({
   id: '/api/cron/exam-briefs',
@@ -49,28 +73,38 @@ const ApiCronExamBriefsRoute = ApiCronExamBriefsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/exam': typeof ExamRoute
+  '/exam': typeof ExamRouteWithChildren
   '/login': typeof LoginRoute
   '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
+  '/exam/archive': typeof ExamArchiveRouteWithChildren
+  '/exam/': typeof ExamIndexRoute
   '/api/cron/exam-briefs': typeof ApiCronExamBriefsRoute
+  '/exam/archive/$date': typeof ExamArchiveDateRoute
+  '/exam/archive/': typeof ExamArchiveIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
+  '/exam': typeof ExamIndexRoute
   '/api/cron/exam-briefs': typeof ApiCronExamBriefsRoute
+  '/exam/archive/$date': typeof ExamArchiveDateRoute
+  '/exam/archive': typeof ExamArchiveIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/exam': typeof ExamRoute
+  '/exam': typeof ExamRouteWithChildren
   '/login': typeof LoginRoute
   '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
+  '/exam/archive': typeof ExamArchiveRouteWithChildren
+  '/exam/': typeof ExamIndexRoute
   '/api/cron/exam-briefs': typeof ApiCronExamBriefsRoute
+  '/exam/archive/$date': typeof ExamArchiveDateRoute
+  '/exam/archive/': typeof ExamArchiveIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,15 +114,21 @@ export interface FileRouteTypes {
     | '/login'
     | '/share'
     | '/digest/$id'
+    | '/exam/archive'
+    | '/exam/'
     | '/api/cron/exam-briefs'
+    | '/exam/archive/$date'
+    | '/exam/archive/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/exam'
     | '/login'
     | '/share'
     | '/digest/$id'
+    | '/exam'
     | '/api/cron/exam-briefs'
+    | '/exam/archive/$date'
+    | '/exam/archive'
   id:
     | '__root__'
     | '/'
@@ -96,12 +136,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/share'
     | '/digest/$id'
+    | '/exam/archive'
+    | '/exam/'
     | '/api/cron/exam-briefs'
+    | '/exam/archive/$date'
+    | '/exam/archive/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ExamRoute: typeof ExamRoute
+  ExamRoute: typeof ExamRouteWithChildren
   LoginRoute: typeof LoginRoute
   ShareRoute: typeof ShareRoute
   DigestIdRoute: typeof DigestIdRoute
@@ -138,12 +182,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exam/': {
+      id: '/exam/'
+      path: '/'
+      fullPath: '/exam/'
+      preLoaderRoute: typeof ExamIndexRouteImport
+      parentRoute: typeof ExamRoute
+    }
+    '/exam/archive': {
+      id: '/exam/archive'
+      path: '/archive'
+      fullPath: '/exam/archive'
+      preLoaderRoute: typeof ExamArchiveRouteImport
+      parentRoute: typeof ExamRoute
+    }
     '/digest/$id': {
       id: '/digest/$id'
       path: '/digest/$id'
       fullPath: '/digest/$id'
       preLoaderRoute: typeof DigestIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/exam/archive/': {
+      id: '/exam/archive/'
+      path: '/'
+      fullPath: '/exam/archive/'
+      preLoaderRoute: typeof ExamArchiveIndexRouteImport
+      parentRoute: typeof ExamArchiveRoute
+    }
+    '/exam/archive/$date': {
+      id: '/exam/archive/$date'
+      path: '/$date'
+      fullPath: '/exam/archive/$date'
+      preLoaderRoute: typeof ExamArchiveDateRouteImport
+      parentRoute: typeof ExamArchiveRoute
     }
     '/api/cron/exam-briefs': {
       id: '/api/cron/exam-briefs'
@@ -155,9 +227,35 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ExamArchiveRouteChildren {
+  ExamArchiveDateRoute: typeof ExamArchiveDateRoute
+  ExamArchiveIndexRoute: typeof ExamArchiveIndexRoute
+}
+
+const ExamArchiveRouteChildren: ExamArchiveRouteChildren = {
+  ExamArchiveDateRoute: ExamArchiveDateRoute,
+  ExamArchiveIndexRoute: ExamArchiveIndexRoute,
+}
+
+const ExamArchiveRouteWithChildren = ExamArchiveRoute._addFileChildren(
+  ExamArchiveRouteChildren,
+)
+
+interface ExamRouteChildren {
+  ExamArchiveRoute: typeof ExamArchiveRouteWithChildren
+  ExamIndexRoute: typeof ExamIndexRoute
+}
+
+const ExamRouteChildren: ExamRouteChildren = {
+  ExamArchiveRoute: ExamArchiveRouteWithChildren,
+  ExamIndexRoute: ExamIndexRoute,
+}
+
+const ExamRouteWithChildren = ExamRoute._addFileChildren(ExamRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ExamRoute: ExamRoute,
+  ExamRoute: ExamRouteWithChildren,
   LoginRoute: LoginRoute,
   ShareRoute: ShareRoute,
   DigestIdRoute: DigestIdRoute,

@@ -63,11 +63,18 @@ export const listBriefs = createServerFn({ method: "POST" })
       .order("date", { ascending: false })
       .limit(data.limit ?? 40);
     if (error || !rows) return [];
-    return rows.map((r) => ({
-      date: r.date as string,
-      generatedAt: new Date(r.generated_at as string).getTime(),
-      itemCount: Array.isArray(r.items) ? (r.items as unknown[]).length : 0,
-    }));
+    return rows.map((r) => {
+      const items = Array.isArray(r.items) ? (r.items as { headline?: string }[]) : [];
+      const headlines = items
+        .map((it) => (typeof it.headline === "string" ? it.headline.trim() : ""))
+        .filter(Boolean);
+      return {
+        date: r.date as string,
+        generatedAt: new Date(r.generated_at as string).getTime(),
+        itemCount: items.length,
+        overview: headlines.slice(0, 2).join(" · "),
+      };
+    });
   });
 
 const MonthInput = z.object({
