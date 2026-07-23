@@ -61,3 +61,19 @@ Desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Capacitor / Android local build artifacts (keep android/ source)
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.keystore
+*.jks
+
+/Daily Digest Hub (1)

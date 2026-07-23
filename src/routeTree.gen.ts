@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ShareRouteImport } from './routes/share'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ExamRouteImport } from './routes/exam'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DigestIdRouteImport } from './routes/digest.$id'
+import { Route as ApiCronExamBriefsRouteImport } from './routes/api/cron/exam-briefs'
 
 const ShareRoute = ShareRouteImport.update({
   id: '/share',
@@ -22,6 +24,11 @@ const ShareRoute = ShareRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamRoute = ExamRouteImport.update({
+  id: '/exam',
+  path: '/exam',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -34,39 +41,71 @@ const DigestIdRoute = DigestIdRouteImport.update({
   path: '/digest/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronExamBriefsRoute = ApiCronExamBriefsRouteImport.update({
+  id: '/api/cron/exam-briefs',
+  path: '/api/cron/exam-briefs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
+  '/api/cron/exam-briefs': typeof ApiCronExamBriefsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
+  '/api/cron/exam-briefs': typeof ApiCronExamBriefsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/exam': typeof ExamRoute
   '/login': typeof LoginRoute
   '/share': typeof ShareRoute
   '/digest/$id': typeof DigestIdRoute
+  '/api/cron/exam-briefs': typeof ApiCronExamBriefsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/share' | '/digest/$id'
+  fullPaths:
+    | '/'
+    | '/exam'
+    | '/login'
+    | '/share'
+    | '/digest/$id'
+    | '/api/cron/exam-briefs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/share' | '/digest/$id'
-  id: '__root__' | '/' | '/login' | '/share' | '/digest/$id'
+  to:
+    | '/'
+    | '/exam'
+    | '/login'
+    | '/share'
+    | '/digest/$id'
+    | '/api/cron/exam-briefs'
+  id:
+    | '__root__'
+    | '/'
+    | '/exam'
+    | '/login'
+    | '/share'
+    | '/digest/$id'
+    | '/api/cron/exam-briefs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExamRoute: typeof ExamRoute
   LoginRoute: typeof LoginRoute
   ShareRoute: typeof ShareRoute
   DigestIdRoute: typeof DigestIdRoute
+  ApiCronExamBriefsRoute: typeof ApiCronExamBriefsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,6 +124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exam': {
+      id: '/exam'
+      path: '/exam'
+      fullPath: '/exam'
+      preLoaderRoute: typeof ExamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -99,14 +145,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DigestIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/exam-briefs': {
+      id: '/api/cron/exam-briefs'
+      path: '/api/cron/exam-briefs'
+      fullPath: '/api/cron/exam-briefs'
+      preLoaderRoute: typeof ApiCronExamBriefsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExamRoute: ExamRoute,
   LoginRoute: LoginRoute,
   ShareRoute: ShareRoute,
   DigestIdRoute: DigestIdRoute,
+  ApiCronExamBriefsRoute: ApiCronExamBriefsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

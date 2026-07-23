@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -247,6 +247,12 @@ function Index() {
           <div className="flex flex-col gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-marginalia sm:flex-row sm:items-baseline sm:justify-between sm:text-xs sm:tracking-[0.22em]">
             <span>vol. 01</span>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-4">
+              <Link
+                to="/exam"
+                className="touch-target inline-flex items-center uppercase tracking-[0.18em] hover:text-accent sm:tracking-[0.22em]"
+              >
+                exampulse →
+              </Link>
               {user?.email && (
                 <span className="max-w-[14rem] truncate normal-case tracking-normal text-ink-soft sm:max-w-xs">
                   {user.email}

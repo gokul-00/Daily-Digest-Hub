@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { isNativeApp } from "@/lib/native-app";
+
 const DISMISS_KEY = "later-pwa-install-dismissed";
 const DISMISS_DAYS = 14;
 
@@ -10,6 +12,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 function isStandalone() {
   if (typeof window === "undefined") return true;
+  if (isNativeApp()) return true;
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true

@@ -88,12 +88,13 @@ export async function recordAiUsageEvent(opts: {
   userId: string;
   digestId: string | null;
   usage: AiUsageMetrics;
+  operation?: "generate_digest" | "generate_brief";
 }): Promise<void> {
   const supabase = createSupabaseServerClient();
   const { error } = await supabase.from("ai_usage_events").insert({
     user_id: opts.userId,
     digest_id: opts.digestId,
-    operation: "generate_digest",
+    operation: opts.operation ?? "generate_digest",
     model: opts.usage.model,
     input_tokens: opts.usage.inputTokens,
     output_tokens: opts.usage.outputTokens,

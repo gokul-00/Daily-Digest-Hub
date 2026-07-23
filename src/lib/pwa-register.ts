@@ -1,8 +1,11 @@
 /** Client-only service worker registration for PWA install + asset caching. */
+import { isNativeApp } from "./native-app";
 import { notifyPwaNeedRefresh, setPwaUpdateHandler } from "./pwa-update";
 
 export function registerPwa() {
   if (typeof window === "undefined") return;
+  // Native shell already owns install + updates — skip browser SW there.
+  if (isNativeApp()) return;
 
   if (import.meta.env.DEV) {
     if ("serviceWorker" in navigator) {
